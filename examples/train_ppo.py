@@ -48,6 +48,8 @@ class Args:
     """whether to save the model into the `runs/{run_name}` folder"""
     load_model_path: str = None
     """Path to a saved model to load and continue training"""
+    eval_only: str = None
+    """Path to a saved model to evaluate without training"""
 
     # Algorithm specific arguments
     env_id: str = "tetris_gymnasium/Tetris"
@@ -255,6 +257,27 @@ if __name__ == "__main__":
         global_step = checkpoint.get("global_step", 0)
 
         print(f"Loaded model with best episodic return: {best_episodic_return}, global step: {global_step}")
+
+    if args.eval_only:
+        print(f"Evaluating model from {args.eval_only} without training...")
+        episodic_returns, episodic_lengths = evaluate(
+            model_path=args.eval_only,
+            make_env=make_env,
+            env_id=args.env_id,
+            eval_episodes=100,
+            run_name=f"{run_name}-eval",
+            Model=Agent,
+            device=torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu"),
+            capture_video=args.capture_video,
+        )
+        for idx, episodic_return in enumerate(episodic_returns):
+            print(f"Eval Episode {idx + 1}: Return = {episodic_return}")
+            writer.add_scalar("eval/episodic_return", episodic_return, idx)
+        for idx, episodic_length in enumerate(episodic_lengths):
+            print(f"Eval Episode {idx + 1}: Length = {episodic_length}")
+            writer.add_scalar("eval/episodic_length", episodic_length, idx)
+        print(f"Average Return: {np.mean(episodic_returns)}, Average Length: {np.mean(episodic_lengths)}")
+        exit(0)
 
     # ALGO Logic: Storage setup
     obs = torch.zeros(
@@ -464,8 +487,8 @@ if __name__ == "__main__":
         )
         for idx, episodic_return in enumerate(episodic_returns):
             writer.add_scalar("eval/episodic_return", episodic_return, idx)
-        for idx, episodic_lengths in enumerate(episodic_lengths):
-            writer.add_scalar("eval/episodic_length", episodic_lengths, idx)
+        for idx, episodic_length in enumerate(episodic_lengths):
+            writer.add_scalar("eval/episodic_length", episodic_length, idx)
 
     envs.close()
     writer.close()
