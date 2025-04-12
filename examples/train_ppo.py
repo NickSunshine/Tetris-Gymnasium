@@ -43,6 +43,8 @@ class Args:
     """the entity (team) of wandb's project"""
     capture_video: bool = True
     """whether to capture videos of the agent performances (check out `videos` folder)"""
+    save_model: bool = True
+    """whether to save the model into the `runs/{run_name}` folder"""
 
     # Algorithm specific arguments
     env_id: str = "tetris_gymnasium/Tetris"
@@ -368,3 +370,8 @@ if __name__ == "__main__":
 
     envs.close()
     writer.close()
+
+    if args.save_model:
+        model_path = f"runs/{run_name}/{args.exp_name}_final.cleanrl_model"
+        torch.save(agent.state_dict(), model_path)
+        print(f"Model saved to {model_path}")
