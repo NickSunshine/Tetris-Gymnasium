@@ -215,6 +215,7 @@ if __name__ == "__main__":
     next_obs, _ = envs.reset(seed=args.seed)
     next_obs = torch.Tensor(next_obs).to(device)
     next_done = torch.zeros(args.num_envs).to(device)
+    best_episodic_return = float("-inf")  # Initialize to negative infinity
 
     for iteration in range(1, args.num_iterations + 1):
         # Annealing the rate if instructed to do so.
@@ -248,16 +249,20 @@ if __name__ == "__main__":
             if "final_info" in infos:
                 for info in infos["final_info"]:
                     if info and "episode" in info:
-                        print(
-                            f"global_step={global_step}, episodic_return={info['episode']['r']}"
-                        )
-                        writer.add_scalar(
-                            "charts/episodic_return", info["episode"]["r"], global_step
-                        )
-                        writer.add_scalar(
-                            "charts/episodic_length", info["episode"]["l"], global_step
-                        )
+                        episodic_return = info["episode"]["r"]
+                        print(f"global_step={global_step}, episodic_return={episodic_return}")
+                        writer.add_scalar("charts/episodic_return", episodic_return, global_step)
+                        writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
 
+                        # Check if this is the best episodic return
+                        if episodic_return > best_episodic_return:
+                            best_episodic_return = episodic_return
+                            if args.save_model:
+                                best_model_path = f"runs/{run_name}/{args.exp_name}_best.cleanrl_model"
+                                torch.save(agent.state_dict(), best_model_path)
+                                print(f"New best model saved to {best_model_path} with return {best_episodic_return}")
+                            writer.add_scalar("charts/best_episodic_return", best_episodic_return, global_step)
+                            
         # bootstrap value if not done
         with torch.no_grad():
             next_value = agent.get_value(next_obs).reshape(1, -1)
