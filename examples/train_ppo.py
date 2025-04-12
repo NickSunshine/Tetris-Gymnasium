@@ -3,6 +3,7 @@ import os
 import random
 import time
 from dataclasses import dataclass
+from typing import Callable
 
 import gymnasium as gym
 import numpy as np
@@ -151,6 +152,42 @@ class Agent(nn.Module):
             action = probs.sample()
         return action, probs.log_prob(action), probs.entropy(), self.critic(hidden)
 
+def evaluate(
+    model_path: str,
+    make_env: Callable,
+    env_id: str,
+    eval_episodes: int,
+    run_name: str,
+    Model: nn.Module,
+    device: torch.device = torch.device("cpu"),
+    capture_video: bool = True,
+):
+    # Create the evaluation environment
+    envs = gym.vector.SyncVectorEnv([make_env(env_id, 0, capture_video, run_name)])
+    model = Model(envs).to(device)
+    model.load_state_dict(torch.load(model_path, map_location=device, weights_only=False)["model_state_dict"])
+    model.eval()
+
+    obs, _ = envs.reset()
+    episodic_returns = []
+    episodic_lengths = []
+
+    while len(episodic_returns) < eval_episodes:
+        with torch.no_grad():
+            obs_tensor = torch.Tensor(obs).to(device)
+            action, _, _, _ = model.get_action_and_value(obs_tensor)
+        obs, reward, terminated, truncated, infos = envs.step(action.cpu().numpy())
+
+        if "final_info" in infos:
+            for final_info in infos["final_info"]:
+                if final_info is not None and "episode" in final_info:
+                    episodic_returns.append(final_info["episode"]["r"])
+                    episodic_lengths.append(final_info["episode"]["l"])
+                    print(f"Eval Episode Return: {final_info['episode']['r']}, Length: {final_info['episode']['l']}")
+
+    envs.close()
+
+    return episodic_returns, episodic_lengths
 
 if __name__ == "__main__":
     args = tyro.cli(Args)
@@ -401,9 +438,6 @@ if __name__ == "__main__":
             "charts/SPS", int(global_step / (time.time() - start_time)), global_step
         )
 
-    envs.close()
-    writer.close()
-
     if args.save_model:
         model_path = f"runs/{run_name}/{args.exp_name}_final.cleanrl_model"
         torch.save(
@@ -416,3 +450,22 @@ if __name__ == "__main__":
             model_path,
         )
         print(f"Model and optimizer saved to {model_path}")
+
+        # Evaluate the saved model
+        episodic_returns, episodic_lengths = evaluate(
+            model_path=model_path,
+            make_env=make_env,
+            env_id=args.env_id,
+            eval_episodes=100,
+            run_name=f"{run_name}-eval",
+            Model=Agent,
+            device=device,
+            capture_video=args.capture_video,
+        )
+        for idx, episodic_return in enumerate(episodic_returns):
+            writer.add_scalar("eval/episodic_return", episodic_return, idx)
+        for idx, episodic_lengths in enumerate(episodic_lengths):
+            writer.add_scalar("eval/episodic_length", episodic_lengths, idx)
+
+    envs.close()
+    writer.close()
