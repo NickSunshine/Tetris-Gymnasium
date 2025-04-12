@@ -1,6 +1,7 @@
-gymnasium
+gymnasium==0.28.1
 tetris-gymnasium
 torch
 tyro
 tensorboard
 stable_baselines3
+moviepy
