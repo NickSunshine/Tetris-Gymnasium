@@ -5,3 +5,4 @@ tyro
 tensorboard
 stable_baselines3
 moviepy
+wandb
