@@ -259,7 +259,15 @@ if __name__ == "__main__":
                             best_episodic_return = episodic_return
                             if args.save_model:
                                 best_model_path = f"runs/{run_name}/{args.exp_name}_best.cleanrl_model"
-                                torch.save(agent.state_dict(), best_model_path)
+                                torch.save(
+                                    {
+                                        "model_state_dict": agent.state_dict(),
+                                        "optimizer_state_dict": optimizer.state_dict(),
+                                        "best_episodic_return": best_episodic_return,
+                                        "global_step": global_step,
+                                    },
+                                    best_model_path,
+                                )
                                 print(f"New best model saved to {best_model_path} with return {best_episodic_return}")
                             writer.add_scalar("charts/best_episodic_return", best_episodic_return, global_step)
                             
@@ -378,5 +386,13 @@ if __name__ == "__main__":
 
     if args.save_model:
         model_path = f"runs/{run_name}/{args.exp_name}_final.cleanrl_model"
-        torch.save(agent.state_dict(), model_path)
-        print(f"Model saved to {model_path}")
+        torch.save(
+            {
+                "model_state_dict": agent.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "best_episodic_return": best_episodic_return,
+                "global_step": global_step,
+            },
+            model_path,
+        )
+        print(f"Model and optimizer saved to {model_path}")
