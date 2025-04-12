@@ -45,6 +45,8 @@ class Args:
     """whether to capture videos of the agent performances (check out `videos` folder)"""
     save_model: bool = True
     """whether to save the model into the `runs/{run_name}` folder"""
+    load_model_path: str = None
+    """Path to a saved model to load and continue training"""
 
     # Algorithm specific arguments
     env_id: str = "tetris_gymnasium/Tetris"
@@ -57,7 +59,7 @@ class Args:
     """the number of parallel game environments"""
     num_steps: int = 128
     """the number of steps to run in each environment per policy rollout"""
-    anneal_lr: bool = True
+    anneal_lr: bool = False
     """Toggle learning rate annealing for policy and value networks"""
     gamma: float = 0.999
     """the discount factor gamma"""
@@ -156,6 +158,7 @@ if __name__ == "__main__":
     args.minibatch_size = int(args.batch_size // args.num_minibatches)
     args.num_iterations = args.total_timesteps // args.batch_size
     run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+
     if args.track:
         import wandb
 
@@ -197,6 +200,25 @@ if __name__ == "__main__":
     agent = Agent(envs).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
+    # Load model if specified
+    best_episodic_return = float("-inf")  # Initialize to negative infinity
+    global_step = 0  # Initialize global step
+    if args.load_model_path:
+        print(f"Loading model from {args.load_model_path}")
+        checkpoint = torch.load(args.load_model_path, weights_only=False)
+
+        # Load model state
+        agent.load_state_dict(checkpoint["model_state_dict"])
+
+        # Load optimizer state
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
+        # Restore metadata
+        best_episodic_return = checkpoint.get("best_episodic_return", float("-inf"))
+        global_step = checkpoint.get("global_step", 0)
+
+        print(f"Loaded model with best episodic return: {best_episodic_return}, global step: {global_step}")
+
     # ALGO Logic: Storage setup
     obs = torch.zeros(
         (args.num_steps, args.num_envs) + envs.single_observation_space.shape
@@ -210,12 +232,10 @@ if __name__ == "__main__":
     values = torch.zeros((args.num_steps, args.num_envs)).to(device)
 
     # TRY NOT TO MODIFY: start the game
-    global_step = 0
     start_time = time.time()
     next_obs, _ = envs.reset(seed=args.seed)
     next_obs = torch.Tensor(next_obs).to(device)
     next_done = torch.zeros(args.num_envs).to(device)
-    best_episodic_return = float("-inf")  # Initialize to negative infinity
 
     for iteration in range(1, args.num_iterations + 1):
         # Annealing the rate if instructed to do so.
