@@ -24,6 +24,8 @@ from stable_baselines3.common.atari_wrappers import (  # isort:skip
     MaxAndSkipEnv,
     NoopResetEnv,
 )
+import matplotlib.pyplot as plt
+import os
 
 
 @dataclass
@@ -175,6 +177,68 @@ def print_summary_statistics(name, data):
             f"Std Dev: {std_dev:.3f}, Min: {min_value:.3f}, Max: {max_value:.3f}"
         )
 
+def create_histogram(data, title, xlabel, filename, run_name, plots_dir, color='blue', bins=20):
+    """
+    Creates and saves a histogram.
+
+    Args:
+        data (list or np.array): The data to plot.
+        title (str): The title of the histogram.
+        xlabel (str): The label for the x-axis.
+        filename (str): The name of the file to save the plot as.
+        run_name (str): The name of the current run (used in the footnote).
+        plots_dir (str): The directory to save the plot in.
+        color (str): The color of the bars in the histogram.
+        bins (int): The number of bins for the histogram.
+    """
+    data = np.array(data).flatten()  # Ensure the data is a 1D array
+    plt.figure(figsize=(10, 6))
+    plt.hist(data, bins=bins, color=color, edgecolor='black', alpha=0.7)
+    plt.title(title, y=1.02)
+    plt.figtext(0.5, 0.01, f"Run Name: {run_name}", ha="center", fontsize=10)
+    plt.xlabel(xlabel)
+    plt.ylabel("Frequency")
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    histogram_path = os.path.join(plots_dir, filename)
+    plt.savefig(histogram_path)
+    plt.close()
+    print(f"{title} saved to {histogram_path}")
+
+def create_violin_plot(data, title, xlabel, filename, run_name, plots_dir, color='blue'):
+    """
+    Creates and saves a violin plot.
+
+    Args:
+        data (list or np.array): The data to plot.
+        title (str): The title of the violin plot.
+        xlabel (str): The label for the x-axis.
+        filename (str): The name of the file to save the plot as.
+        run_name (str): The name of the current run (used in the footnote).
+        plots_dir (str): The directory to save the plot in.
+        color (str): The color of the violin plot.
+    """
+    data = np.array(data).flatten()  # Ensure the data is a 1D array
+    plt.figure(figsize=(10, 6))
+    parts = plt.violinplot(data, showmeans=True, showextrema=True, showmedians=True)
+    
+    # Customize the color of the violin plot
+    for pc in parts['bodies']:
+        pc.set_facecolor(color)
+        pc.set_edgecolor('black')
+        pc.set_alpha(0.7)
+    parts['cmeans'].set_color('red')  # Mean line color
+    parts['cmedians'].set_color('black')  # Median line color
+
+    plt.title(title, y=1.02)
+    plt.figtext(0.5, 0.01, f"Run Name: {run_name}", ha="center", fontsize=10)
+    plt.xlabel(xlabel)
+    plt.ylabel("Density")
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    violin_path = os.path.join(plots_dir, filename)
+    plt.savefig(violin_path)
+    plt.close()
+    print(f"{title} saved to {violin_path}")
+
 def evaluate(
     model_path: str,
     make_env: Callable,
@@ -227,6 +291,88 @@ def evaluate(
     print_summary_statistics("Return", episodic_returns)
     print_summary_statistics("Length", episodic_lengths)
     print_summary_statistics("Time", episodic_times)
+
+    plots_dir = os.path.join("plots", run_name)
+    os.makedirs(plots_dir, exist_ok=True)
+    
+    create_histogram(
+        data=episodic_returns,
+        title="Histogram of Episodic Returns",
+        xlabel="Episodic Return",
+        filename="histogram_episodic_returns.png",
+        run_name=run_name,
+        plots_dir=plots_dir,
+        color='blue'
+    )
+    
+    create_histogram(
+        data=episodic_lengths,
+        title="Histogram of Episodic Lengths",
+        xlabel="Episodic Length",
+        filename="histogram_episodic_lengths.png",
+        run_name=run_name,
+        plots_dir=plots_dir,
+        color='green'
+    )
+    
+    create_histogram(
+        data=episodic_times,
+        title="Histogram of Episodic Times",
+        xlabel="Episodic Time (seconds)",
+        filename="histogram_episodic_times.png",
+        run_name=run_name,
+        plots_dir=plots_dir,
+        color='orange'
+    )
+    
+    create_histogram(
+        data=episodic_lines_cleared,
+        title="Histogram of Lines Cleared",
+        xlabel="Lines Cleared",
+        filename="histogram_episodic_lines_cleared.png",
+        run_name=run_name,
+        plots_dir=plots_dir,
+        color='purple'
+    )
+
+    create_violin_plot(data=episodic_returns, 
+        title="Violin Plot of Episodic Returns",
+        xlabel="Episodic Return",
+        filename="violin_episodic_returns.png",
+        run_name=run_name,
+        plots_dir=plots_dir,
+        color='blue'
+    )
+
+    create_violin_plot(
+        data=episodic_lengths,
+        title="Violin Plot of Episodic Lengths",
+        xlabel="Episodic Length",
+        filename="violin_episodic_lengths.png",
+        run_name=run_name,
+        plots_dir=plots_dir,
+        color='green'
+    )
+
+    create_violin_plot(
+        data=episodic_times,
+        title="Violin Plot of Episodic Times",
+        xlabel="Episodic Time (seconds)",
+        filename="violin_episodic_times.png",
+        run_name=run_name,
+        plots_dir=plots_dir,
+        color='orange'
+    )
+
+    create_violin_plot(
+        data=episodic_lines_cleared,
+        title="Violin Plot of Lines Cleared",
+        xlabel="Lines Cleared",
+        filename="violin_episodic_lines_cleared.png",
+        run_name=run_name,
+        plots_dir=plots_dir,
+        color='purple'
+    )
 
     envs.close()
     return
