@@ -239,6 +239,36 @@ def create_violin_plot(data, title, xlabel, filename, run_name, plots_dir, color
     plt.close()
     print(f"{title} saved to {violin_path}")
 
+def create_scatter_plot(x_data, y_data, title, xlabel, ylabel, filename, run_name, plots_dir, color='blue'):
+    """
+    Creates and saves a scatterplot.
+
+    Args:
+        x_data (list or np.array): The data for the X-axis.
+        y_data (list or np.array): The data for the Y-axis.
+        title (str): The title of the scatterplot.
+        xlabel (str): The label for the X-axis.
+        ylabel (str): The label for the Y-axis.
+        filename (str): The name of the file to save the plot as.
+        run_name (str): The name of the current run (used in the footnote).
+        plots_dir (str): The directory to save the plot in.
+        color (str): The color of the scatter points.
+    """
+    x_data = np.array(x_data).flatten()
+    y_data = np.array(y_data).flatten()
+
+    plt.figure(figsize=(10, 6))
+    plt.scatter(x_data, y_data, color=color, alpha=0.7, edgecolor='black')
+    plt.title(title, y=1.02)
+    plt.figtext(0.5, 0.01, f"Run Name: {run_name}", ha="center", fontsize=10)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.grid(axis='both', linestyle='--', alpha=0.7)
+    scatterplot_path = os.path.join(plots_dir, filename)
+    plt.savefig(scatterplot_path)
+    plt.close()
+    print(f"{title} saved to {scatterplot_path}")
+
 def evaluate(
     model_path: str,
     make_env: Callable,
@@ -287,6 +317,8 @@ def evaluate(
         for idx, episodic_time in enumerate(episodic_times):
             writer.add_scalar("eval/episodic_time", episodic_time, idx)
 
+    envs.close()
+    
     print_summary_statistics("Lines Cleared", episodic_lines_cleared)
     print_summary_statistics("Return", episodic_returns)
     print_summary_statistics("Length", episodic_lengths)
@@ -295,87 +327,18 @@ def evaluate(
     plots_dir = os.path.join("plots", run_name)
     os.makedirs(plots_dir, exist_ok=True)
     
-    create_histogram(
-        data=episodic_returns,
-        title="Histogram of Episodic Returns",
-        xlabel="Episodic Return",
-        filename="histogram_episodic_returns.png",
-        run_name=run_name,
-        plots_dir=plots_dir,
-        color='blue'
-    )
-    
-    create_histogram(
-        data=episodic_lengths,
-        title="Histogram of Episodic Lengths",
-        xlabel="Episodic Length",
-        filename="histogram_episodic_lengths.png",
-        run_name=run_name,
-        plots_dir=plots_dir,
-        color='green'
-    )
-    
-    create_histogram(
-        data=episodic_times,
-        title="Histogram of Episodic Times",
-        xlabel="Episodic Time (seconds)",
-        filename="histogram_episodic_times.png",
-        run_name=run_name,
-        plots_dir=plots_dir,
-        color='orange'
-    )
-    
-    create_histogram(
-        data=episodic_lines_cleared,
-        title="Histogram of Lines Cleared",
-        xlabel="Lines Cleared",
-        filename="histogram_episodic_lines_cleared.png",
-        run_name=run_name,
-        plots_dir=plots_dir,
-        color='purple'
-    )
+    create_histogram(episodic_returns,"Histogram of Episodic Returns","Episodic Return","histogram_episodic_returns.png",run_name,plots_dir,'blue')
+    create_histogram(episodic_lengths,"Histogram of Episodic Lengths","Episodic Length","histogram_episodic_lengths.png",run_name,plots_dir,'green')
+    create_histogram(episodic_times,"Histogram of Episodic Times","Episodic Time (seconds)","histogram_episodic_times.png",run_name,plots_dir,'orange')
+    create_histogram(episodic_lines_cleared,"Histogram of Lines Cleared","Lines Cleared","histogram_episodic_lines_cleared.png",run_name,plots_dir,'purple')
 
-    create_violin_plot(data=episodic_returns, 
-        title="Violin Plot of Episodic Returns",
-        xlabel="Episodic Return",
-        filename="violin_episodic_returns.png",
-        run_name=run_name,
-        plots_dir=plots_dir,
-        color='blue'
-    )
+    create_violin_plot(episodic_returns,"Violin Plot of Episodic Returns","Episodic Return","violin_episodic_returns.png",run_name,plots_dir,'blue')
+    create_violin_plot(episodic_lengths,"Violin Plot of Episodic Lengths","Episodic Length","violin_episodic_lengths.png",run_name,plots_dir,'green')
+    create_violin_plot(episodic_times,"Violin Plot of Episodic Times","Episodic Time (seconds)","violin_episodic_times.png",run_name,plots_dir,'orange')
+    create_violin_plot(episodic_lines_cleared,"Violin Plot of Lines Cleared","Lines Cleared","violin_episodic_lines_cleared.png",run_name,plots_dir,'purple')
 
-    create_violin_plot(
-        data=episodic_lengths,
-        title="Violin Plot of Episodic Lengths",
-        xlabel="Episodic Length",
-        filename="violin_episodic_lengths.png",
-        run_name=run_name,
-        plots_dir=plots_dir,
-        color='green'
-    )
-
-    create_violin_plot(
-        data=episodic_times,
-        title="Violin Plot of Episodic Times",
-        xlabel="Episodic Time (seconds)",
-        filename="violin_episodic_times.png",
-        run_name=run_name,
-        plots_dir=plots_dir,
-        color='orange'
-    )
-
-    create_violin_plot(
-        data=episodic_lines_cleared,
-        title="Violin Plot of Lines Cleared",
-        xlabel="Lines Cleared",
-        filename="violin_episodic_lines_cleared.png",
-        run_name=run_name,
-        plots_dir=plots_dir,
-        color='purple'
-    )
-
-    envs.close()
-    return
+    create_scatter_plot(episodic_lengths,episodic_returns,"Scatterplot of Episodic Lengths vs Returns","Episodic Length","Episodic Return","scatterplot_lengths_vs_returns.png",run_name,plots_dir,'blue')
+    create_scatter_plot(episodic_lengths,episodic_lines_cleared,"Scatterplot of Episodic Lengths vs Lines Cleared","Episodic Length","Lines Cleared","scatterplot_lengths_vs_lines_cleared.png",run_name,plots_dir,'green')
 
 if __name__ == "__main__":
     args = tyro.cli(Args)
