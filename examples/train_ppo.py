@@ -163,6 +163,7 @@ def evaluate(
     Model: nn.Module,
     device: torch.device = torch.device("cpu"),
     capture_video: bool = True,
+    writer=None
 ):
     # Create the evaluation environment
     envs = gym.vector.SyncVectorEnv([make_env(env_id, 0, capture_video, run_name)])
@@ -191,9 +192,19 @@ def evaluate(
                     episodic_times.append(final_info["episode"]["t"])
                     print(f"Eval Episode Lines: {final_info['lines_cleared']}, Return: {final_info['episode']['r']}, Length: {final_info['episode']['l']}, Time: {final_info['episode']['t']}")
 
+    if writer is not None:
+        for idx, episodic_lines_clear in enumerate(episodic_lines_cleared):
+            writer.add_scalar("eval/episodic_lines_cleared", episodic_lines_clear, idx)
+        for idx, episodic_return in enumerate(episodic_returns):
+            writer.add_scalar("eval/episodic_return", episodic_return, idx)
+        for idx, episodic_length in enumerate(episodic_lengths):
+            writer.add_scalar("eval/episodic_length", episodic_length, idx)
+        for idx, episodic_time in enumerate(episodic_times):
+            writer.add_scalar("eval/episodic_time", episodic_time, idx)
+        print(f"Average Lines Cleared: {np.mean(episodic_lines_cleared)}, Average Return: {np.mean(episodic_returns)}, Average Length: {np.mean(episodic_lengths)}, Average Time: {np.mean(episodic_times)}")
+    
     envs.close()
-
-    return episodic_lines_cleared, episodic_returns, episodic_lengths, episodic_times
+    return
 
 if __name__ == "__main__":
     args = tyro.cli(Args)
@@ -264,7 +275,7 @@ if __name__ == "__main__":
 
     if args.eval_only:
         print(f"Evaluating model from {args.eval_only} without training...")
-        episodic_lines_cleared, episodic_returns, episodic_lengths, episodic_times = evaluate(
+        evaluate(
             model_path=args.eval_only,
             make_env=make_env,
             env_id=args.env_id,
@@ -273,20 +284,8 @@ if __name__ == "__main__":
             Model=Agent,
             device=torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu"),
             capture_video=args.capture_video,
+            writer=writer
         )
-        for idx, episodic_lines_clear in enumerate(episodic_lines_cleared):
-            print(f"Eval Episode {idx + 1}: Lines Cleared = {episodic_lines_clear}")
-            writer.add_scalar("eval/episodic_lines_cleared", episodic_lines_clear, idx)
-        for idx, episodic_return in enumerate(episodic_returns):
-            print(f"Eval Episode {idx + 1}: Return = {episodic_return}")
-            writer.add_scalar("eval/episodic_return", episodic_return, idx)
-        for idx, episodic_length in enumerate(episodic_lengths):
-            print(f"Eval Episode {idx + 1}: Length = {episodic_length}")
-            writer.add_scalar("eval/episodic_length", episodic_length, idx)
-        for idx, episodic_time in enumerate(episodic_times):
-            print(f"Eval Episode {idx + 1}: Time = {episodic_time}")
-            writer.add_scalar("eval/episodic_time", episodic_time, idx)
-        print(f"Average Lines Cleared: {np.mean(episodic_lines_cleared)}, Average Return: {np.mean(episodic_returns)}, Average Length: {np.mean(episodic_lengths)}, Average Time: {np.mean(episodic_times)}")
         exit(0)
 
     # ALGO Logic: Storage setup
@@ -487,7 +486,7 @@ if __name__ == "__main__":
         print(f"Model and optimizer saved to {model_path}")
 
         # Evaluate the saved model
-        episodic_lines_cleared, episodic_returns, episodic_lengths, episodic_times = evaluate(
+        evaluate(
             model_path=model_path,
             make_env=make_env,
             env_id=args.env_id,
@@ -496,15 +495,8 @@ if __name__ == "__main__":
             Model=Agent,
             device=device,
             capture_video=args.capture_video,
+            writer=writer
         )
-        for idx, episodic_lines_clear in enumerate(episodic_lines_cleared):
-            writer.add_scalar("eval/episodic_lines_cleared", episodic_lines_clear, idx)
-        for idx, episodic_return in enumerate(episodic_returns):
-            writer.add_scalar("eval/episodic_return", episodic_return, idx)
-        for idx, episodic_length in enumerate(episodic_lengths):
-            writer.add_scalar("eval/episodic_length", episodic_length, idx)
-        for idx, episodic_time in enumerate(episodic_times):
-            writer.add_scalar("eval/episodic_time", episodic_time, idx)
 
     envs.close()
     writer.close()
