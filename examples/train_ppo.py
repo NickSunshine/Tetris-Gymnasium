@@ -201,8 +201,36 @@ def evaluate(
             writer.add_scalar("eval/episodic_length", episodic_length, idx)
         for idx, episodic_time in enumerate(episodic_times):
             writer.add_scalar("eval/episodic_time", episodic_time, idx)
-        print(f"Average Lines Cleared: {np.mean(episodic_lines_cleared)}, Average Return: {np.mean(episodic_returns)}, Average Length: {np.mean(episodic_lengths)}, Average Time: {np.mean(episodic_times)}")
-    
+
+    # Calculate and print summary statistics
+    from scipy.stats import mode as scipy_mode
+
+    def print_summary_statistics(name, data):
+        if len(data) == 0:
+            print(f"{name}: No data available.")
+            return
+
+        # Convert data to a NumPy array
+        data = np.array(data, dtype=np.float32)
+
+        # Calculate statistics
+        mean_value = np.mean(data)
+        median_value = np.median(data)
+        std_dev = np.std(data, ddof=1) if len(data) > 1 else 0.0
+        min_value = np.min(data)
+        max_value = np.max(data)
+
+        # Print the statistics
+        print(
+            f"{name} - Mean: {mean_value:.3f}, Median: {median_value:.3f}, "
+            f"Std Dev: {std_dev:.3f}, Min: {min_value:.3f}, Max: {max_value:.3f}"
+        )
+
+    print_summary_statistics("Lines Cleared", episodic_lines_cleared)
+    print_summary_statistics("Return", episodic_returns)
+    print_summary_statistics("Length", episodic_lengths)
+    print_summary_statistics("Time", episodic_times)
+
     envs.close()
     return
 
