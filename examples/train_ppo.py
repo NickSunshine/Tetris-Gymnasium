@@ -27,6 +27,7 @@ from stable_baselines3.common.atari_wrappers import (  # isort:skip
 import matplotlib.pyplot as plt
 import os
 
+from tetris_gymnasium.mappings.rewards import RewardsMapping
 
 @dataclass
 class Args:
@@ -100,12 +101,31 @@ class Args:
 
 def make_env(env_id, idx, capture_video, run_name):
     def thunk():
+        
+        R0 = RewardsMapping(
+            alife=1.0,
+            clear_line=1.0,
+            game_over=0.0,
+        )
+
+        R1 = RewardsMapping(
+            alife=0.0,
+            clear_line=1.0,
+            game_over=0.0,
+        )
+
+        R3 = RewardsMapping(
+            alife=1.0,
+            clear_line=1.0,
+            game_over=-1.0,
+        )
+        
         if capture_video and idx == 0:
-            env = gym.make(env_id, render_mode="rgb_array")
+            env = gym.make(env_id, render_mode="rgb_array", rewards_mapping=R0)
             env = RgbObservation(env)
             env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
         else:
-            env = gym.make(env_id)
+            env = gym.make(env_id, rewards_mapping=R0)
             env = RgbObservation(env)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         # env = NoopResetEnv(env, noop_max=30)
