@@ -53,6 +53,9 @@ class Args:
     """Path to a saved model to load and continue training"""
     eval_only: str = None
     """Path to a saved model to evaluate without training"""
+    # New argument for reward selection
+    reward: str = "R0"
+    """Reward mapping to use: R0, R1, or R2"""
 
     # Algorithm specific arguments
     env_id: str = "tetris_gymnasium/Tetris"
@@ -99,9 +102,9 @@ class Args:
     """the number of iterations (computed in runtime)"""
 
 
-def make_env(env_id, idx, capture_video, run_name):
+def make_env(env_id, idx, capture_video, run_name, reward):
     def thunk():
-        
+        # Define reward mappings
         R0 = RewardsMapping(
             alife=1.0,
             clear_line=1.0,
@@ -114,25 +117,31 @@ def make_env(env_id, idx, capture_video, run_name):
             game_over=0.0,
         )
 
-        R3 = RewardsMapping(
+        R2 = RewardsMapping(
             alife=1.0,
             clear_line=1.0,
             game_over=-1.0,
         )
-        
+
+        # Select the appropriate reward mapping
+        if reward == "R0":
+            selected_reward = R0
+        elif reward == "R1":
+            selected_reward = R1
+        elif reward == "R2":
+            selected_reward = R2
+        else:
+            raise ValueError(f"Invalid reward option: {reward}. Choose from R0, R1, or R2.")
+
+        # Create the environment
         if capture_video and idx == 0:
-            env = gym.make(env_id, render_mode="rgb_array", rewards_mapping=R0)
+            env = gym.make(env_id, render_mode="rgb_array", rewards_mapping=selected_reward)
             env = RgbObservation(env)
             env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
         else:
-            env = gym.make(env_id, rewards_mapping=R0)
+            env = gym.make(env_id, rewards_mapping=selected_reward)
             env = RgbObservation(env)
         env = gym.wrappers.RecordEpisodeStatistics(env)
-        # env = NoopResetEnv(env, noop_max=30)
-        # env = MaxAndSkipEnv(env, skip=4)
-        # env = EpisodicLifeEnv(env)
-        # if "FIRE" in env.unwrapped.get_action_meanings():
-        #     env = FireResetEnv(env)
         env = ClipRewardEnv(env)
         env = gym.wrappers.ResizeObservation(env, (84, 84))
         env = gym.wrappers.GrayScaleObservation(env)
@@ -301,7 +310,7 @@ def evaluate(
     writer=None
 ):
     # Create the evaluation environment
-    envs = gym.vector.SyncVectorEnv([make_env(env_id, 0, capture_video, run_name)])
+    envs = gym.vector.SyncVectorEnv([make_env(env_id, 0, capture_video, run_name, args.reward)])
     model = Model(envs).to(device)
     model.load_state_dict(torch.load(model_path, map_location=device, weights_only=False)["model_state_dict"])
     model.eval()
@@ -397,9 +406,15 @@ if __name__ == "__main__":
     # env setup
     envs = gym.vector.SyncVectorEnv(
         [
-            make_env(args.env_id, i, args.capture_video, run_name)
+            make_env(
+                env_id=args.env_id,
+                idx=i,
+                capture_video=args.capture_video,
+                run_name=run_name,
+                reward=args.reward
+            )
             for i in range(args.num_envs)
-        ],
+        ]
     )
     assert isinstance(
         envs.single_action_space, gym.spaces.Discrete
