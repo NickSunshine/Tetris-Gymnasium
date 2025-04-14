@@ -321,20 +321,28 @@ def evaluate(
     episodic_times = []
     episodic_lines_cleared = []
 
+    # Initialize cumulative lines cleared
+    cumulative_lines_cleared = 0
+
     while len(episodic_returns) < eval_episodes:
         with torch.no_grad():
             obs_tensor = torch.Tensor(obs).to(device)
             action, _, _, _ = model.get_action_and_value(obs_tensor)
         obs, reward, terminated, truncated, infos = envs.step(action.cpu().numpy())
 
+        # Accumulate lines cleared during the episode
+        if "lines_cleared" in infos:
+            cumulative_lines_cleared += infos["lines_cleared"][0]  # Assuming single environment for evaluation
+
+        # Handle end of episode
         if "final_info" in infos:
             for final_info in infos["final_info"]:
                 if final_info is not None and "episode" in final_info:
-                    episodic_lines_cleared.append(final_info["lines_cleared"])
+                    episodic_lines_cleared.append(cumulative_lines_cleared)
                     episodic_returns.append(final_info["episode"]["r"])
                     episodic_lengths.append(final_info["episode"]["l"])
                     episodic_times.append(final_info["episode"]["t"])
-                    print(f"Eval Episode Lines: {final_info['lines_cleared']}, Return: {final_info['episode']['r']}, Length: {final_info['episode']['l']}, Time: {final_info['episode']['t']}")
+                    print(f"Eval Episode Lines: {cumulative_lines_cleared}, Return: {final_info['episode']['r']}, Length: {final_info['episode']['l']}, Time: {final_info['episode']['t']}")
 
     if writer is not None:
         for idx, episodic_lines_clear in enumerate(episodic_lines_cleared):
@@ -475,6 +483,9 @@ if __name__ == "__main__":
     next_obs = torch.Tensor(next_obs).to(device)
     next_done = torch.zeros(args.num_envs).to(device)
 
+    # Add this at the beginning of the training loop
+    cumulative_lines_cleared = {i: 0 for i in range(args.num_envs)}
+
     for iteration in range(1, args.num_iterations + 1):
         # Annealing the rate if instructed to do so.
         if args.anneal_lr:
@@ -503,13 +514,29 @@ if __name__ == "__main__":
             next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(
                 next_done
             ).to(device)
+            
+            # Update cumulative lines cleared for each environment
+            for i in range(args.num_envs):
+                # Access the lines_cleared value for each environment
+                if "lines_cleared" in infos:
+                    cumulative_lines_cleared[i] += infos["lines_cleared"][i]
+
+                # Reset the counter when an episode ends
+                if "final_info" in infos and infos["final_info"][i] is not None:
+                    final_info = infos["final_info"][i]
+                    if isinstance(final_info, dict) and "episode" in final_info:
+                        # Log the cumulative lines cleared for the episode
+                        writer.add_scalar("charts/episodic_lines_cleared", cumulative_lines_cleared[i], global_step)
+                        #print(f"Episode {i}: Lines Cleared: {cumulative_lines_cleared[i]}")
+
+                        # Reset the counter for the next episode
+                        cumulative_lines_cleared[i] = 0
 
             if "final_info" in infos:
                 for info in infos["final_info"]:
                     if info and "episode" in info:
                         episodic_return = info["episode"]["r"]
                         print(f"global_step={global_step}, episodic_return={episodic_return}")
-                        writer.add_scalar("charts/episodic_lines_cleared", info["lines_cleared"], global_step)
                         writer.add_scalar("charts/episodic_return", episodic_return, global_step)
                         writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
                         writer.add_scalar("charts/episodic_time", info["episode"]["t"], global_step)
