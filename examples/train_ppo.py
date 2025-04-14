@@ -433,6 +433,7 @@ if __name__ == "__main__":
 
     # Load model if specified
     best_episodic_return = float("-inf")  # Initialize to negative infinity
+    best_cumulative_lines_cleared = float("-inf")  # Initialize to negative infinity
     global_step = 0  # Initialize global step
     if args.load_model_path:
         print(f"Loading model from {args.load_model_path}")
@@ -446,9 +447,9 @@ if __name__ == "__main__":
 
         # Restore metadata
         best_episodic_return = checkpoint.get("best_episodic_return", float("-inf"))
+        best_cumulative_lines_cleared = checkpoint.get("best_cumulative_lines_cleared", float("-inf"))
         global_step = checkpoint.get("global_step", 0)
 
-        print(f"Loaded model with best episodic return: {best_episodic_return}, global step: {global_step}")
 
     if args.eval_only:
         print(f"Evaluating model from {args.eval_only} without training...")
@@ -526,8 +527,12 @@ if __name__ == "__main__":
                     final_info = infos["final_info"][i]
                     if isinstance(final_info, dict) and "episode" in final_info:
                         # Log the cumulative lines cleared for the episode
-                        writer.add_scalar("charts/episodic_lines_cleared", cumulative_lines_cleared[i], global_step)
-                        #print(f"Episode {i}: Lines Cleared: {cumulative_lines_cleared[i]}")
+                        writer.add_scalar("charts/cumulative_lines_cleared", cumulative_lines_cleared[i], global_step)
+                        
+                        # Check if this is the best cumulative lines cleared
+                        if cumulative_lines_cleared[i] > best_cumulative_lines_cleared:
+                            best_cumulative_lines_cleared = cumulative_lines_cleared[i]
+                            writer.add_scalar("charts/best_cumulative_lines_cleared", best_cumulative_lines_cleared, global_step)
 
                         # Reset the counter for the next episode
                         cumulative_lines_cleared[i] = 0
@@ -551,6 +556,7 @@ if __name__ == "__main__":
                                         "model_state_dict": agent.state_dict(),
                                         "optimizer_state_dict": optimizer.state_dict(),
                                         "best_episodic_return": best_episodic_return,
+                                        "best_cumulative_lines_cleared": best_cumulative_lines_cleared,
                                         "global_step": global_step,
                                     },
                                     best_model_path,
@@ -653,9 +659,7 @@ if __name__ == "__main__":
         explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
-        writer.add_scalar(
-            "charts/learning_rate", optimizer.param_groups[0]["lr"], global_step
-        )
+        #writer.add_scalar("charts/learning_rate", optimizer.param_groups[0]["lr"], global_step)
         writer.add_scalar("losses/value_loss", v_loss.item(), global_step)
         writer.add_scalar("losses/policy_loss", pg_loss.item(), global_step)
         writer.add_scalar("losses/entropy", entropy_loss.item(), global_step)
@@ -676,6 +680,7 @@ if __name__ == "__main__":
                 "model_state_dict": agent.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
                 "best_episodic_return": best_episodic_return,
+                "best_cumulative_lines_cleared": best_cumulative_lines_cleared,
                 "global_step": global_step,
             },
             model_path,
