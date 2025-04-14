@@ -669,6 +669,7 @@ if __name__ == "__main__":
         )
 
     if args.save_model:
+        # Save the final model
         model_path = f"runs/{run_name}/{args.exp_name}_final.cleanrl_model"
         torch.save(
             {
@@ -679,20 +680,36 @@ if __name__ == "__main__":
             },
             model_path,
         )
-        print(f"Model and optimizer saved to {model_path}")
+        print(f"Final model and optimizer saved to {model_path}")
 
-        # Evaluate the saved model
-        evaluate(
-            model_path=model_path,
-            make_env=make_env,
-            env_id=args.env_id,
-            eval_episodes=100,
-            run_name=f"{run_name}-eval",
-            Model=Agent,
-            device=device,
-            capture_video=args.capture_video,
-            writer=writer
-        )
+        # Determine which model to evaluate
+        best_model_path = f"runs/{run_name}/{args.exp_name}_best.cleanrl_model"
+        if os.path.exists(best_model_path):
+            print(f"Evaluating the best model saved at {best_model_path}")
+            evaluate(
+                model_path=best_model_path,
+                make_env=make_env,
+                env_id=args.env_id,
+                eval_episodes=100,
+                run_name=f"{run_name}-best-eval",
+                Model=Agent,
+                device=device,
+                capture_video=args.capture_video,
+                writer=writer,
+            )
+        else:
+            print(f"No best model found. Evaluating the final model saved at {model_path}")
+            evaluate(
+                model_path=model_path,
+                make_env=make_env,
+                env_id=args.env_id,
+                eval_episodes=100,
+                run_name=f"{run_name}-final-eval",
+                Model=Agent,
+                device=device,
+                capture_video=args.capture_video,
+                writer=writer,
+            )
 
     envs.close()
     writer.close()
