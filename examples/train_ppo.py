@@ -339,6 +339,7 @@ def evaluate(
             for final_info in infos["final_info"]:
                 if final_info is not None and "episode" in final_info:
                     episodic_lines_cleared.append(cumulative_lines_cleared)
+                    cumulative_lines_cleared = 0  # Reset for the next episode
                     episodic_returns.append(final_info["episode"]["r"])
                     episodic_lengths.append(final_info["episode"]["l"])
                     episodic_times.append(final_info["episode"]["t"])
@@ -433,7 +434,7 @@ if __name__ == "__main__":
 
     # Load model if specified
     best_episodic_return = float("-inf")  # Initialize to negative infinity
-    best_cumulative_lines_cleared = float("-inf")  # Initialize to negative infinity
+    best_episodic_lines_cleared = float("-inf")  # Initialize to negative infinity
     global_step = 0  # Initialize global step
     if args.load_model_path:
         print(f"Loading model from {args.load_model_path}")
@@ -447,7 +448,7 @@ if __name__ == "__main__":
 
         # Restore metadata
         best_episodic_return = checkpoint.get("best_episodic_return", float("-inf"))
-        best_cumulative_lines_cleared = checkpoint.get("best_cumulative_lines_cleared", float("-inf"))
+        best_episodic_lines_cleared = checkpoint.get("best_episodic_lines_cleared", float("-inf"))
         global_step = checkpoint.get("global_step", 0)
 
 
@@ -527,12 +528,12 @@ if __name__ == "__main__":
                     final_info = infos["final_info"][i]
                     if isinstance(final_info, dict) and "episode" in final_info:
                         # Log the cumulative lines cleared for the episode
-                        writer.add_scalar("charts/cumulative_lines_cleared", cumulative_lines_cleared[i], global_step)
+                        writer.add_scalar("charts/episodic_lines_cleared", cumulative_lines_cleared[i], global_step)
                         
                         # Check if this is the best cumulative lines cleared
-                        if cumulative_lines_cleared[i] > best_cumulative_lines_cleared:
-                            best_cumulative_lines_cleared = cumulative_lines_cleared[i]
-                            writer.add_scalar("charts/best_cumulative_lines_cleared", best_cumulative_lines_cleared, global_step)
+                        if cumulative_lines_cleared[i] > best_episodic_lines_cleared:
+                            best_episodic_lines_cleared = cumulative_lines_cleared[i]
+                            writer.add_scalar("charts/best_episodic_lines_cleared", best_episodic_lines_cleared, global_step)
 
                         # Reset the counter for the next episode
                         cumulative_lines_cleared[i] = 0
@@ -556,7 +557,7 @@ if __name__ == "__main__":
                                         "model_state_dict": agent.state_dict(),
                                         "optimizer_state_dict": optimizer.state_dict(),
                                         "best_episodic_return": best_episodic_return,
-                                        "best_cumulative_lines_cleared": best_cumulative_lines_cleared,
+                                        "best_episodic_lines_cleared": best_episodic_lines_cleared,
                                         "global_step": global_step,
                                     },
                                     best_model_path,
@@ -680,7 +681,7 @@ if __name__ == "__main__":
                 "model_state_dict": agent.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
                 "best_episodic_return": best_episodic_return,
-                "best_cumulative_lines_cleared": best_cumulative_lines_cleared,
+                "best_episodic_lines_cleared": best_episodic_lines_cleared,
                 "global_step": global_step,
             },
             model_path,
