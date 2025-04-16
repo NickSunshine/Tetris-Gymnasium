@@ -53,7 +53,6 @@ class Args:
     """Path to a saved model to load and continue training"""
     eval_only: str = None
     """Path to a saved model to evaluate without training"""
-    # New argument for reward selection
     reward: str = "R0"
     """Reward mapping to use: R0, R1, or R2"""
 
@@ -104,7 +103,7 @@ class Args:
 
 def make_env(env_id, idx, capture_video, run_name, reward):
     def thunk():
-        # Define reward mappings
+        
         R0 = RewardsMapping(
             alife=1.0,
             clear_line=1.0,
@@ -123,7 +122,6 @@ def make_env(env_id, idx, capture_video, run_name, reward):
             game_over=-1.0,
         )
 
-        # Select the appropriate reward mapping
         if reward == "R0":
             selected_reward = R0
         elif reward == "R1":
@@ -133,7 +131,6 @@ def make_env(env_id, idx, capture_video, run_name, reward):
         else:
             raise ValueError(f"Invalid reward option: {reward}. Choose from R0, R1, or R2.")
 
-        # Create the environment
         if capture_video and idx == 0:
             env = gym.make(env_id, render_mode="rgb_array", rewards_mapping=selected_reward)
             env = RgbObservation(env)
@@ -190,17 +187,14 @@ def print_summary_statistics(name, data):
             print(f"{name}: No data available.")
             return
 
-        # Convert data to a NumPy array
         data = np.array(data, dtype=np.float32)
 
-        # Calculate statistics
         mean_value = np.mean(data)
         median_value = np.median(data)
         std_dev = np.std(data, ddof=1) if len(data) > 1 else 0.0
         min_value = np.min(data)
         max_value = np.max(data)
 
-        # Print the statistics
         print(
             f"{name} - Mean: {mean_value:.3f}, Median: {median_value:.3f}, "
             f"Std Dev: {std_dev:.3f}, Min: {min_value:.3f}, Max: {max_value:.3f}"
@@ -309,7 +303,6 @@ def evaluate(
     capture_video: bool = True,
     writer=None
 ):
-    # Create the evaluation environment
     envs = gym.vector.SyncVectorEnv([make_env(env_id, 0, capture_video, run_name, args.reward)])
     model = Model(envs).to(device)
     model.load_state_dict(torch.load(model_path, map_location=device, weights_only=False)["model_state_dict"])
@@ -321,7 +314,6 @@ def evaluate(
     episodic_times = []
     episodic_lines_cleared = []
 
-    # Initialize cumulative lines cleared
     cumulative_lines_cleared = 0
 
     while len(episodic_returns) < eval_episodes:
@@ -330,16 +322,14 @@ def evaluate(
             action, _, _, _ = model.get_action_and_value(obs_tensor)
         obs, reward, terminated, truncated, infos = envs.step(action.cpu().numpy())
 
-        # Accumulate lines cleared during the episode
         if "lines_cleared" in infos:
-            cumulative_lines_cleared += infos["lines_cleared"][0]  # Assuming single environment for evaluation
+            cumulative_lines_cleared += infos["lines_cleared"][0]
 
-        # Handle end of episode
         if "final_info" in infos:
             for final_info in infos["final_info"]:
                 if final_info is not None and "episode" in final_info:
                     episodic_lines_cleared.append(cumulative_lines_cleared)
-                    cumulative_lines_cleared = 0  # Reset for the next episode
+                    cumulative_lines_cleared = 0 
                     episodic_returns.append(final_info["episode"]["r"])
                     episodic_lengths.append(final_info["episode"]["l"])
                     episodic_times.append(final_info["episode"]["t"])
@@ -432,21 +422,14 @@ if __name__ == "__main__":
     agent = Agent(envs).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
-    # Load model if specified
-    best_episodic_return = float("-inf")  # Initialize to negative infinity
-    best_episodic_lines_cleared = float("-inf")  # Initialize to negative infinity
-    global_step = 0  # Initialize global step
+    best_episodic_return = float("-inf")
+    best_episodic_lines_cleared = float("-inf")
+    global_step = 0 
     if args.load_model_path:
         print(f"Loading model from {args.load_model_path}")
         checkpoint = torch.load(args.load_model_path, weights_only=False)
-
-        # Load model state
         agent.load_state_dict(checkpoint["model_state_dict"])
-
-        # Load optimizer state
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-
-        # Restore metadata
         best_episodic_return = checkpoint.get("best_episodic_return", float("-inf"))
         best_episodic_lines_cleared = checkpoint.get("best_episodic_lines_cleared", float("-inf"))
         global_step = checkpoint.get("global_step", 0)
@@ -485,7 +468,6 @@ if __name__ == "__main__":
     next_obs = torch.Tensor(next_obs).to(device)
     next_done = torch.zeros(args.num_envs).to(device)
 
-    # Add this at the beginning of the training loop
     cumulative_lines_cleared = {i: 0 for i in range(args.num_envs)}
 
     for iteration in range(1, args.num_iterations + 1):
@@ -517,25 +499,19 @@ if __name__ == "__main__":
                 next_done
             ).to(device)
             
-            # Update cumulative lines cleared for each environment
             for i in range(args.num_envs):
-                # Access the lines_cleared value for each environment
                 if "lines_cleared" in infos:
                     cumulative_lines_cleared[i] += infos["lines_cleared"][i]
 
-                # Reset the counter when an episode ends
                 if "final_info" in infos and infos["final_info"][i] is not None:
                     final_info = infos["final_info"][i]
                     if isinstance(final_info, dict) and "episode" in final_info:
-                        # Log the cumulative lines cleared for the episode
                         writer.add_scalar("charts/episodic_lines_cleared", cumulative_lines_cleared[i], global_step)
                         
-                        # Check if this is the best cumulative lines cleared
                         if cumulative_lines_cleared[i] > best_episodic_lines_cleared:
                             best_episodic_lines_cleared = cumulative_lines_cleared[i]
                             writer.add_scalar("charts/best_episodic_lines_cleared", best_episodic_lines_cleared, global_step)
 
-                        # Reset the counter for the next episode
                         cumulative_lines_cleared[i] = 0
 
             if "final_info" in infos:
@@ -547,7 +523,6 @@ if __name__ == "__main__":
                         writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
                         writer.add_scalar("charts/episodic_time", info["episode"]["t"], global_step)
 
-                        # Check if this is the best episodic return
                         if episodic_return > best_episodic_return:
                             best_episodic_return = episodic_return
                             if args.save_model:
@@ -674,7 +649,6 @@ if __name__ == "__main__":
         )
 
     if args.save_model:
-        # Save the final model
         model_path = f"runs/{run_name}/{args.exp_name}_final.cleanrl_model"
         torch.save(
             {
@@ -688,7 +662,6 @@ if __name__ == "__main__":
         )
         print(f"Final model and optimizer saved to {model_path}")
 
-        # Determine which model to evaluate
         best_model_path = f"runs/{run_name}/{args.exp_name}_best.cleanrl_model"
         if os.path.exists(best_model_path):
             print(f"Evaluating the best model saved at {best_model_path}")
