@@ -122,14 +122,46 @@ def make_env(env_id, idx, capture_video, run_name, reward):
             game_over=-1.0,
         )
 
+        R3 = RewardsMapping(
+            alife=1.0,
+            clear_line=1.0,
+            game_over=-25.0,
+        )
+
+        R4 = RewardsMapping(
+            alife=1.0,
+            clear_line=1.0,
+            game_over=-50.0,
+        )
+
+        R5 = RewardsMapping(
+            alife=1.0,
+            clear_line=1.0,
+            game_over=-75.0,
+        )
+
+        R6 = RewardsMapping(
+            alife=1.0,
+            clear_line=1.0,
+            game_over=-100.0,
+        )
+
         if reward == "R0":
             selected_reward = R0
         elif reward == "R1":
             selected_reward = R1
         elif reward == "R2":
             selected_reward = R2
+        elif reward == "R3":
+            selected_reward = R3
+        elif reward == "R4":
+            selected_reward = R4
+        elif reward == "R5":
+            selected_reward = R5
+        elif reward == "R6":
+            selected_reward = R6
         else:
-            raise ValueError(f"Invalid reward option: {reward}. Choose from R0, R1, or R2.")
+            raise ValueError(f"Invalid reward option: {reward}. Choose from R0, R1, R2, R3, R4, R5, or R6.")
 
         if capture_video and idx == 0:
             env = gym.make(env_id, render_mode="rgb_array", rewards_mapping=selected_reward)
@@ -138,8 +170,13 @@ def make_env(env_id, idx, capture_video, run_name, reward):
         else:
             env = gym.make(env_id, rewards_mapping=selected_reward)
             env = RgbObservation(env)
+
         env = gym.wrappers.RecordEpisodeStatistics(env)
-        env = ClipRewardEnv(env)
+
+        # Apply ClipRewardEnv only for R0, R1, or R2
+        if reward in ["R0", "R1", "R2"]:
+            env = ClipRewardEnv(env)
+        
         env = gym.wrappers.ResizeObservation(env, (84, 84))
         env = gym.wrappers.GrayScaleObservation(env)
         env = gym.wrappers.FrameStack(env, 4)
