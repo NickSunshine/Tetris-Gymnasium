@@ -366,12 +366,12 @@ def evaluate(
         if "final_info" in infos:
             for final_info in infos["final_info"]:
                 if final_info is not None and "episode" in final_info:
-                    episodic_lines_cleared.append(cumulative_lines_cleared)
-                    cumulative_lines_cleared = 0 
+                    episodic_lines_cleared.append(cumulative_lines_cleared) 
                     episodic_returns.append(final_info["episode"]["r"])
                     episodic_lengths.append(final_info["episode"]["l"])
                     episodic_times.append(final_info["episode"]["t"])
                     print(f"Eval Episode Lines: {cumulative_lines_cleared}, Return: {final_info['episode']['r']}, Length: {final_info['episode']['l']}, Time: {final_info['episode']['t']}")
+                    cumulative_lines_cleared = 0
 
     if writer is not None:
         for idx, episodic_lines_clear in enumerate(episodic_lines_cleared):
