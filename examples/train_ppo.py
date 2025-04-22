@@ -168,7 +168,7 @@ class Agent(nn.Module):
             nn.Flatten(),
             layer_init(nn.Linear(64 * 7 * 7, 512)),
             nn.ReLU(),
-            layer_init(nn.Linear(512, 256))
+            layer_init(nn.Linear(512, 256)),
             nn.ReLU(),
         )
         self.actor = layer_init(nn.Linear(256, envs.single_action_space.n), std=0.01)
