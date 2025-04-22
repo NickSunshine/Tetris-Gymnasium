@@ -143,7 +143,7 @@ def make_env(env_id, idx, capture_video, run_name, reward):
         env = ClipRewardEnv(env)
         env = gym.wrappers.ResizeObservation(env, (84, 84))
         env = gym.wrappers.GrayScaleObservation(env)
-        env = gym.wrappers.FrameStack(env, 8)
+        env = gym.wrappers.FrameStack(env, 4)
         return env
 
     return thunk
@@ -159,23 +159,18 @@ class Agent(nn.Module):
     def __init__(self, envs):
         super().__init__()
         self.network = nn.Sequential(
-            layer_init(nn.Conv2d(8, 32, 8, stride=4)),
-            nn.BatchNorm2d(32),
+            layer_init(nn.Conv2d(4, 32, 8, stride=4)),
             nn.ReLU(),
             layer_init(nn.Conv2d(32, 64, 4, stride=2)),
-            nn.BatchNorm2d(64),
             nn.ReLU(),
             layer_init(nn.Conv2d(64, 64, 3, stride=1)),
-            nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.Flatten(),
             layer_init(nn.Linear(64 * 7 * 7, 512)),
             nn.ReLU(),
-            layer_init(nn.Linear(512, 256)),
-            nn.ReLU(),
         )
-        self.actor = layer_init(nn.Linear(256, envs.single_action_space.n), std=0.01)
-        self.critic = layer_init(nn.Linear(256, 1), std=1)
+        self.actor = layer_init(nn.Linear(512, envs.single_action_space.n), std=0.01)
+        self.critic = layer_init(nn.Linear(512, 1), std=1)
 
     def get_value(self, x):
         return self.critic(self.network(x / 255.0))
