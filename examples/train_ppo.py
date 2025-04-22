@@ -143,7 +143,7 @@ def make_env(env_id, idx, capture_video, run_name, reward):
         env = ClipRewardEnv(env)
         env = gym.wrappers.ResizeObservation(env, (84, 84))
         env = gym.wrappers.GrayScaleObservation(env)
-        env = gym.wrappers.FrameStack(env, 4)
+        env = gym.wrappers.FrameStack(env, 8)
         return env
 
     return thunk
