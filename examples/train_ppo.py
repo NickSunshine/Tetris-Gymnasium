@@ -204,9 +204,10 @@ class Agent(nn.Module):
             nn.Flatten(),
             layer_init(nn.Linear(64 * 7 * 7, 512)),
             nn.ReLU(),
+            layer_init(nn.Linear(512, 256))
         )
-        self.actor = layer_init(nn.Linear(512, envs.single_action_space.n), std=0.01)
-        self.critic = layer_init(nn.Linear(512, 1), std=1)
+        self.actor = layer_init(nn.Linear(256, envs.single_action_space.n), std=0.01)
+        self.critic = layer_init(nn.Linear(256, 1), std=1)
 
     def get_value(self, x):
         return self.critic(self.network(x / 255.0))
