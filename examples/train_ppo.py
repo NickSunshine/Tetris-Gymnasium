@@ -54,7 +54,7 @@ class Args:
     eval_only: str = None
     """Path to a saved model to evaluate without training"""
     reward: str = "R0"
-    """Reward mapping to use: R0, R1, R2, or R3"""
+    """Reward mapping to use: R0, R1, R2, R3, or R4"""
 
     # Algorithm specific arguments
     env_id: str = "tetris_gymnasium/Tetris"
@@ -128,6 +128,12 @@ def make_env(env_id, idx, capture_video, run_name, reward):
             game_over=-1.0,
         )
 
+        R4 = RewardsMapping(
+            alife=0.1,
+            clear_line=1.0,
+            game_over=-10.0,
+        )
+
         if reward == "R0":
             selected_reward = R0
         elif reward == "R1":
@@ -136,6 +142,8 @@ def make_env(env_id, idx, capture_video, run_name, reward):
             selected_reward = R2
         elif reward == "R3":
             selected_reward = R3
+        elif reward == "R4":
+            selected_reward = R4
         else:
             raise ValueError(f"Invalid reward option: {reward}. Choose from R0, R1, R2, or R3")
 
@@ -148,7 +156,10 @@ def make_env(env_id, idx, capture_video, run_name, reward):
             env = RgbObservation(env)
 
         env = gym.wrappers.RecordEpisodeStatistics(env)
-        env = ClipRewardEnv(env)
+        
+        if reward in ["R0", "R1", "R2", "R3"]:
+            env = ClipRewardEnv(env)
+
         env = gym.wrappers.ResizeObservation(env, (84, 84))
         env = gym.wrappers.GrayScaleObservation(env)
         env = gym.wrappers.FrameStack(env, 4)
