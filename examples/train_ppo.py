@@ -122,14 +122,22 @@ def make_env(env_id, idx, capture_video, run_name, reward):
             game_over=-1.0,
         )
 
+        R3 = RewardsMapping(
+            alife=0.0,
+            clear_line=1.0,
+            game_over=-1.0,
+        )
+
         if reward == "R0":
             selected_reward = R0
         elif reward == "R1":
             selected_reward = R1
         elif reward == "R2":
             selected_reward = R2
+        elif reward == "R3":
+            selected_reward = R3
         else:
-            raise ValueError(f"Invalid reward option: {reward}. Choose from R0, R1, or R2")
+            raise ValueError(f"Invalid reward option: {reward}. Choose from R0, R1, R2, or R3")
 
         if capture_video and idx == 0:
             env = gym.make(env_id, render_mode="rgb_array", rewards_mapping=selected_reward)
