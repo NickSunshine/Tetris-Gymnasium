@@ -54,7 +54,7 @@ class Args:
     eval_only: str = None
     """Path to a saved model to evaluate without training"""
     reward: str = "R0"
-    """Reward mapping to use: R0, R1, or R2"""
+    """Reward mapping to use: R0, R1, R2, or R3"""
 
     # Algorithm specific arguments
     env_id: str = "tetris_gymnasium/Tetris"
