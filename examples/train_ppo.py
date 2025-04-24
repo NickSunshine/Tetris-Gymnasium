@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt
 import os
 
 from tetris_gymnasium.mappings.rewards import RewardsMapping
+from tetris_gymnasium.mappings.actions import ActionsMapping
 
 @dataclass
 class Args:
@@ -55,6 +56,8 @@ class Args:
     """Path to a saved model to evaluate without training"""
     reward: str = "R0"
     """Reward mapping to use: R0, R1, R2, R3, or R4"""
+    action: str = "A0"
+    """Action mapping to use: A0 or  A1"""
 
     # Algorithm specific arguments
     env_id: str = "tetris_gymnasium/Tetris"
@@ -101,7 +104,7 @@ class Args:
     """the number of iterations (computed in runtime)"""
 
 
-def make_env(env_id, idx, capture_video, run_name, reward):
+def make_env(env_id, idx, capture_video, run_name, reward, action):
     def thunk():
         
         R0 = RewardsMapping(
@@ -134,6 +137,25 @@ def make_env(env_id, idx, capture_video, run_name, reward):
             game_over=-10.0,
         )
 
+        A0 = ActionsMapping(
+            move_left = 0,
+            move_right = 1,
+            move_down = 2,
+            rotate_clockwise = 3,
+            rotate_counterclockwise = 4,
+            hard_drop = 5,
+            swap = 6,
+            no_op = 7
+        )
+
+        A1 = ActionsMapping(
+            move_left = 0,
+            move_right = 1,
+            rotate_clockwise = 2,
+            rotate_counterclockwise = 3,
+            no_op = 4
+        )
+
         if reward == "R0":
             selected_reward = R0
         elif reward == "R1":
@@ -146,13 +168,20 @@ def make_env(env_id, idx, capture_video, run_name, reward):
             selected_reward = R4
         else:
             raise ValueError(f"Invalid reward option: {reward}. Choose from R0, R1, R2, or R3")
+        
+        if action == "A0":
+            selected_action = A0
+        elif action == "A1":
+            selected_action = A1
+        else:
+            raise ValueError(f"Invalid action option: {action}. Choose from A0 or A1")
 
         if capture_video and idx == 0:
-            env = gym.make(env_id, render_mode="rgb_array", rewards_mapping=selected_reward)
+            env = gym.make(env_id, render_mode="rgb_array", rewards_mapping=selected_reward, actions_mapping=selected_action)
             env = RgbObservation(env)
             env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
         else:
-            env = gym.make(env_id, rewards_mapping=selected_reward)
+            env = gym.make(env_id, rewards_mapping=selected_reward, actions_mapping=selected_action)
             env = RgbObservation(env)
 
         env = gym.wrappers.RecordEpisodeStatistics(env)
@@ -323,7 +352,7 @@ def evaluate(
     capture_video: bool = True,
     writer=None
 ):
-    envs = gym.vector.SyncVectorEnv([make_env(env_id, 0, capture_video, run_name, args.reward)])
+    envs = gym.vector.SyncVectorEnv([make_env(env_id, 0, capture_video, run_name, args.reward, args.action)])
     model = Model(envs).to(device)
     model.load_state_dict(torch.load(model_path, map_location=device, weights_only=False)["model_state_dict"])
     model.eval()
@@ -430,7 +459,8 @@ if __name__ == "__main__":
                 idx=i,
                 capture_video=args.capture_video,
                 run_name=run_name,
-                reward=args.reward
+                reward=args.reward,
+                action=args.action,
             )
             for i in range(args.num_envs)
         ]
