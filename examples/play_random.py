@@ -13,6 +13,7 @@ from tetris_gymnasium.wrappers.observation import RgbObservation
 
 from stable_baselines3.common.atari_wrappers import ClipRewardEnv
 from tetris_gymnasium.mappings.rewards import RewardsMapping
+from tetris_gymnasium.mappings.actions import ActionsMapping
 
 @dataclass
 class Args:
@@ -37,11 +38,12 @@ class Args:
     total_timesteps: int = 10000000
     """Total timesteps to run the random agent"""
     reward: str = "R0"
-    """Reward mapping to use: R0, R1, or R2"""
+    """Reward mapping to use: R0, R1, R2, R3, or R4"""
+    action: str = "A0"
+    """Action mapping to use: A0 or  A1"""
 
 
-def make_env(env_id, capture_video, run_name, reward):
-    # Define reward mappings
+def make_env(env_id, capture_video, run_name, reward, action):
     R0 = RewardsMapping(
         alife=1.0,
         clear_line=1.0,
@@ -60,26 +62,67 @@ def make_env(env_id, capture_video, run_name, reward):
         game_over=-1.0,
     )
 
-    # Select the appropriate reward mapping
+    R3 = RewardsMapping(
+        alife=0.0,
+        clear_line=1.0,
+        game_over=-1.0,
+    )
+
+    R4 = RewardsMapping(
+        alife=0.1,
+        clear_line=1.0,
+        game_over=-10.0,
+    )
+
+    A0 = ActionsMapping(
+        move_left = 0,
+        move_right = 1,
+        move_down = 2,
+        rotate_clockwise = 3,
+        rotate_counterclockwise = 4,
+        hard_drop = 5,
+        swap = 6,
+        no_op = 7
+    )
+
+    A1 = ActionsMapping(
+        move_left = 0,
+        move_right = 1,
+        rotate_clockwise = 2,
+        rotate_counterclockwise = 3,
+        no_op = 4
+    )
+
     if reward == "R0":
         selected_reward = R0
     elif reward == "R1":
         selected_reward = R1
     elif reward == "R2":
         selected_reward = R2
+    elif reward == "R3":
+        selected_reward = R3
+    elif reward == "R4":
+        selected_reward = R4
     else:
-        raise ValueError(f"Invalid reward option: {reward}. Choose from R0, R1, or R2.")
+        raise ValueError(f"Invalid reward option: {reward}. Choose from R0, R1, R2, or R3")
+    
+    if action == "A0":
+        selected_action = A0
+    elif action == "A1":
+        selected_action = A1
+    else:
+        raise ValueError(f"Invalid action option: {action}. Choose from A0 or A1")
 
-    # Create the environment
-    if capture_video:  # Capture video for the environment
-        env = gym.make(env_id, render_mode="rgb_array", rewards_mapping=selected_reward)
+    if capture_video:
+        env = gym.make(env_id, render_mode="rgb_array", rewards_mapping=selected_reward, actions_mapping=selected_action)
         env = RgbObservation(env)
         env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
     else:
-        env = gym.make(env_id, rewards_mapping=selected_reward)
+        env = gym.make(env_id, rewards_mapping=selected_reward, actions_mapping=selected_action)
         env = RgbObservation(env)
     env = gym.wrappers.RecordEpisodeStatistics(env)
-    env = ClipRewardEnv(env)
+    if reward in ["R0", "R1", "R2", "R3"]:
+            env = ClipRewardEnv(env)
     return env
 
 
@@ -108,7 +151,7 @@ if __name__ == "__main__":
     )
 
     # Initialize the environment
-    env = make_env(args.env_id, args.capture_video, run_name, args.reward)
+    env = make_env(args.env_id, args.capture_video, run_name, args.reward, args.action)
     next_obs, _ = env.reset(seed=args.seed)
     cumulative_lines_cleared = 0  # Initialize cumulative lines cleared
     best_episodic_return = float("-inf")  # Initialize best episodic return
