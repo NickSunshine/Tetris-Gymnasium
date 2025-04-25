@@ -151,8 +151,11 @@ def make_env(env_id, idx, capture_video, run_name, reward, action):
         A1 = ActionsMapping(
             move_left = 0,
             move_right = 1,
+            move_down = -1,
             rotate_clockwise = 2,
             rotate_counterclockwise = 3,
+            hard_drop = -1,
+            swap = -1,
             no_op = 4
         )
 
